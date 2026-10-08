@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ '寻物启事' if item_type == 'lost' else '失物招领' }}{% endblock %}
+
+{% block content %}
+<section class="wrap section">
+  <div class="page-head">
+    <div>
+      <h1>{{ '寻物启事' if item_type == 'lost' else '失物招领' }}</h1>
+      <p class="muted">
+        {% if item_type == 'lost' %}
+          同学们丢失物品后发布的记录，共 {{ total }} 条
+        {% else %}
+          同学们捡到物品后发布的记录，共 {{ total }} 条
+        {% endif %}
+      </p>
+    </div>
+    <div class="head-actions">
+      <a class="btn {{ 'btn-primary' if item_type == 'lost' else 'btn-outline' }}"
+         href="{{ url_for('browse_page', type='lost') }}">寻物启事</a>
+      <a class="btn {{ 'btn-primary' if item_type == 'found' else 'btn-outline' }}"
+         href="{{ url_for('browse_page', type='found') }}">失物招领</a>
+    </div>
+  </div>
+
+  <form class="filters" method="get" action="{{ url_for('browse_page') }}">
+    <input type="hidden" name="type" value="{{ item_type }}">
+    <div class="filter-row">
+      <input class="input" type="search" name="q" value="{{ keyword }}"
+             placeholder="搜索标题、描述、标签、地点…" aria-label="关键词">
+      <select class="input" name="category" aria-label="分类">
+        <option value="">全部分类</option>
+        {% for cat in categories %}
+          <option value="{{ cat.code }}" {{ 'selected' if category == cat.code }}>{{ cat.name }}（{{ cat.item_count }}）</option>
+        {% endfor %}
+      </select>
+      <select class="input" name="order" aria-label="排序">
+        <option value="newest" {{ 'selected' if order == 'newest' }}>最新发布</option>
+        <option value="oldest" {{ 'selected' if order == 'oldest' }}>最早发布</option>
+        <option value="hot" {{ 'selected' if order == 'hot' }}>最多浏览</option>
+        <option value="match" {{ 'selected' if order == 'match' }}>匹配度最高</option>
+      </select>
+      <button class="btn btn-primary" type="submit">筛选</button>
+      {% if keyword or category %}
+        <a class="btn btn-ghost" href="{{ url_for('browse_page', type=item_type) }}">重置</a>
+      {% endif %}
+    </div>
+  </form>
+
+  <div id="item-grid" class="grid">
+    {% for item in items %}
+      {% include "_item_card.html" %}
+    {% else %}
+      <div class="empty-state">
+        <h3>没有找到符合条件的记录</h3>
+        <p>换个关键词试试，或者直接发布一条：系统会自动在库内寻找匹配。</p>
+        <a class="btn btn-primary" href="{{ url_for('publish_page', type=item_type) }}">发布{{ '寻物启事' if item_type == 'lost' else '失物招领' }}</a>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if pages > 1 %}
+    <nav class="pager" aria-label="分页">
+      {% if page > 1 %}
+        <a class="btn btn-ghost" href="{{ url_for('browse_page', type=item_type, q=keyword, category=category, order=order, page=page-1) }}">← 上一页</a>
+      {% endif %}
+      <span class="pager-info">第 {{ page }} / {{ pages }} 页</span>
+      {% if page < pages %}
+        <a class="btn btn-ghost" href="{{ url_for('browse_page', type=item_type, q=keyword, category=category, order=order, page=page+1) }}">下一页 →</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+</section>
+{% endblock %}

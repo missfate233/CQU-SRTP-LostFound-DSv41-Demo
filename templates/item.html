@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title }}{% endblock %}
+
+{% block content %}
+<section class="wrap section">
+  <nav class="crumb">
+    <a href="{{ url_for('index') }}">首页</a>
+    <span>/</span>
+    <a href="{{ url_for('browse_page', type=item.type) }}">{{ item.type_label }}</a>
+    <span>/</span>
+    <span>{{ item.title }}</span>
+  </nav>
+
+  <div class="detail-layout">
+    <!-- 左侧：物品信息 -->
+    <div class="detail-main">
+      <div class="detail-gallery">
+        {% if item.images %}
+          <div class="gallery-main">
+            <img id="gallery-main-img" src="{{ url_for('static', filename='uploads/' ~ item.images[0].filename) }}" alt="{{ item.title }}">
+          </div>
+          {% if item.images | length > 1 %}
+            <div class="gallery-thumbs">
+              {% for img in item.images %}
+                <button type="button" class="gallery-thumb {{ 'active' if loop.first }}"
+                        data-full="{{ url_for('static', filename='uploads/' ~ img.filename) }}">
+                  <img src="{{ url_for('static', filename='uploads/' ~ img.thumb) }}" alt="图 {{ loop.index }}">
+                </button>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="gallery-empty">
+            <p>该记录没有上传照片</p>
+            <small>仅使用文本标签通道进行匹配（权重会自动向文本迁移）</small>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="detail-head">
+        <span class="badge badge-{{ item.type }}">{{ item.type_label }}</span>
+        <span class="badge badge-status">{{ item.status_label }}</span>
+        <h1>{{ item.title }}</h1>
+        <p class="muted">
+          {{ item.category_name }}
+          {% if item.color_name %} · 颜色 {{ item.color_name }}{% endif %}
+          {% if item.location %} · 📍 {{ item.location }}{% endif %}
+        </p>
+      </div>
+
+      {% if item.description %}
+        <div class="panel">
+          <h2>物品描述</h2>
+          <p class="pre-wrap">{{ item.description }}</p>
+        </div>
+      {% endif %}
+
+      {% if item.tags %}
+        <div class="panel">
+          <h2>文本标签</h2>
+          <div class="tag-row">
+            {% for tag in item.tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+          </div>
+          <p class="hint">标签会参与 TF-IDF 词袋与标签重合度计算，是文本匹配的主要依据。</p>
+        </div>
+      {% endif %}
+
+      {% if item.images %}
+        <div class="panel">
+          <h2>图像感知特征</h2>
+          {% set img = item.images[0] %}
+          <div class="feature-grid">
+            <div class="feature">
+              <small>轮廓指纹 (256bit)</small>
+              <code>{{ (img.shape_sig_hex or img.crop_phash_hex or img.phash_hex)[:24] }}…</code>
+            </div>
+            <div class="feature">
+              <small>前景主色</small>
+              <strong>
+                {% if img.crop_dominant and img.crop_dominant.hex %}
+                  <i class="swatch" style="background: {{ img.crop_dominant.hex }}"></i>{{ img.crop_dominant.label }}
+                {% else %}—{% endif %}
+              </strong>
+            </div>
+            <div class="feature">
+              <small>主体占画面</small>
+              <strong>{{ (img.blob_ratio * 100) | round(1) }}%</strong>
+            </div>
+            <div class="feature">
+              <small>包围盒填充率</small>
+              <strong>{{ (img.blob_fill * 100) | round(1) }}%</strong>
+            </div>
+            <div class="feature">
+              <small>整图 pHash</small>
+              <code>{{ img.phash_hex }}</code>
+            </div>
+            <div class="feature">
+              <small>图像尺寸</small>
+              <strong>{{ img.width }} × {{ img.height }}</strong>
+            </div>
+          </div>
+          <p class="hint">
+            图像通道分三步：① 以四角像素估计背景色、用中位数 + 3×1.4826×MAD 的鲁棒阈值
+            分离出主体；② 把前景掩膜等比归一化到 16×16，得到与拍摄距离无关的
+            <strong>轮廓指纹</strong>，并用 Dice 系数比对（配合包围盒填充率区分方块与圆形）；
+            ③ 在 HSV 空间统计前景像素的<strong>色相直方图</strong>（16 维环形软分箱），
+            计算直方图相交率。整图 pHash 仅保留为「疑似同一张照片」的弱提示 ——
+            实测它对拍摄距离过于敏感，不适合作为主通道。
+          </p>
+        </div>
+      {% endif %}
+
+      <div class="panel">
+        <h2>联系方式</h2>
+        <div class="contact-box">
+          <p><strong>{{ item.contact_name or '未填写' }}</strong></p>
+          {% if item.contact %}
+            <p class="contact-value">{{ item.contact }}</p>
+          {% else %}
+            <p class="muted">发布者未留下联系方式，可通过系统管理员协助联系。</p>
+          {% endif %}
+          <p class="muted small">
+            发布于 {{ item.created_at | dt }} · 浏览 {{ item.view_count }} 次 ·
+            事发时间 {{ item.happened_at | dt }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧：匹配结果 -->
+    <aside class="detail-side">
+      <div class="match-panel">
+        <div class="match-panel-head">
+          <h2>智能匹配结果</h2>
+          <button class="btn btn-ghost btn-sm" type="button" data-action="refresh-matches"
+                  data-item-id="{{ item.id }}" data-counterpart="{{ '失物招领' if item.type == 'lost' else '寻物启事' }}">
+            重新计算
+          </button>
+        </div>
+        <p class="muted small">
+          在 {{ item.type == 'lost' and '失物招领' or '寻物启事' }} 记录中比对，
+          按 图像 × 文本 × 地点 融合得分排序。
+        </p>
+
+        <div id="match-list" data-item-id="{{ item.id }}">
+          {% for m in matches %}
+            {% include "_match_card.html" %}
+          {% else %}
+            <div class="empty-state small">
+              <h3>暂无匹配</h3>
+              <p>库内还没有与之相似的对侧记录。可以补充更多标签或更清晰的照片后重试。</p>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>需要人工核对？</h2>
+        <p class="small muted">
+          匹配得分只代表特征相似度，最终请通过物品的独有特征（划痕、附件、内容物）确认归属，
+          避免误领。
+        </p>
+      </div>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/detail.js') }}"></script>
+{% endblock %}

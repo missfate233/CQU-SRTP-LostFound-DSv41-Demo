@@ -1,0 +1,27 @@
+# ---- 运行期生成物 ----
+data/lostfound.db
+data/lostfound.db-wal
+data/lostfound.db-shm
+data/demo_images/
+data/debug_masks/
+
+# 上传的图片（保留目录本身，忽略内容）
+static/uploads/*.jpg
+static/uploads/*.jpeg
+static/uploads/*.png
+static/uploads/*.webp
+!static/uploads/.gitkeep
+
+# ---- 依赖与虚拟环境 ----
+# vendor/ 由 bootstrap.py 生成；若要随项目分发离线依赖，请删除下面这一行
+vendor/
+.venv/
+__pycache__/
+*.py[cod]
+.piptmp/
+.whl/
+
+# ---- 测试与临时目录 ----
+_testtmp/
+*testtmp*/
+*.log

@@ -1,0 +1,74 @@
+<!-- 单条匹配结果卡片（详情页 AJAX 刷新时复用同一结构） -->
+<article class="match-item" data-match-id="{{ m.item.id }}">
+  <div class="match-item-head">
+    <a class="match-thumb" href="{{ url_for('item_page', item_id=m.item.id) }}">
+      {% if m.item.images %}
+        <img src="{{ url_for('static', filename='uploads/' ~ m.item.images[0].thumb) }}" alt="{{ m.item.title }}">
+      {% else %}<span class="mini-noimg">无图</span>{% endif %}
+    </a>
+    <div class="match-item-info">
+      <div class="match-score-row">
+        <span class="score-chip {{ m.score | score_class }}">{{ m.score | pct }}</span>
+        <span class="level-label">{{ m.level_label if m.level_label else '' }}</span>
+      </div>
+      <a class="match-item-title" href="{{ url_for('item_page', item_id=m.item.id) }}">{{ m.item.title }}</a>
+      <p class="muted small">
+        {{ m.item.type_label }} · {{ m.item.category_name }}
+        {% if m.item.location %} · 📍 {{ m.item.location }}{% endif %}
+        · {{ m.item.created_at | ago }}
+      </p>
+    </div>
+  </div>
+
+  <div class="score-bars">
+    <div class="bar-row">
+      <span>图像</span>
+      <div class="bar"><i style="width: {{ (m.image_score * 100) | round(1) }}%"></i></div>
+      <b>{{ m.image_score | pct }}</b>
+    </div>
+    <div class="bar-row">
+      <span>文本</span>
+      <div class="bar bar-2"><i style="width: {{ (m.text_score * 100) | round(1) }}%"></i></div>
+      <b>{{ m.text_score | pct }}</b>
+    </div>
+    {% if m.location_score %}
+    <div class="bar-row">
+      <span>地点</span>
+      <div class="bar bar-3"><i style="width: {{ (m.location_score * 100) | round(1) }}%"></i></div>
+      <b>{{ m.location_score | pct }}</b>
+    </div>
+    {% endif %}
+  </div>
+
+  <ul class="reason-list">
+    {% for reason in m.reasons %}<li>{{ reason }}</li>{% endfor %}
+  </ul>
+
+  <details class="match-detail">
+    <summary>查看技术细节</summary>
+    {% set d = m.detail or {} %}
+    {% set img = d.get('image', {}) %}
+    {% set txt = d.get('text', {}) %}
+    <table class="kv">
+      <tr><th>融合权重</th><td>
+        图像 {{ ((d.get('weights', {}).get('image', 0)) * 100) | round(0) }}%
+        · 文本 {{ ((d.get('weights', {}).get('text', 0)) * 100) | round(0) }}%
+        · 地点 {{ ((d.get('weights', {}).get('location', 0)) * 100) | round(0) }}%
+      </td></tr>
+      <tr><th>轮廓相似度 (Dice)</th><td>{{ img.get('shape', '—') }}</td></tr>
+      <tr><th>颜色直方图相交</th><td>{{ img.get('color', '—') }}</td></tr>
+      <tr><th>主色对比</th><td>{{ (img.get('dominant_labels') or ['—','—']) | join(' | ') }}</td></tr>
+      <tr><th>整图哈希距离</th><td>{{ img.get('hamming', '—') }} / 64（仅作同图提示）</td></tr>
+      <tr><th>TF-IDF 余弦</th><td>{{ txt.get('tfidf', 0) }}</td></tr>
+      <tr><th>标签重合度</th><td>{{ txt.get('tag', 0) }}</td></tr>
+      <tr><th>地点语义</th><td>{{ d.get('location', 0) }}</td></tr>
+    </table>
+  </details>
+
+  <div class="match-item-foot">
+    <a class="btn btn-sm btn-outline" href="{{ url_for('item_page', item_id=m.item.id) }}">查看详情</a>
+    {% if m.item.contact %}
+      <span class="contact-inline">联系方式：{{ m.item.contact }}</span>
+    {% endif %}
+  </div>
+</article>

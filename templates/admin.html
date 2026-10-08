@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}管理后台{% endblock %}
+
+{% block content %}
+<section class="wrap section">
+  <div class="page-head">
+    <div>
+      <h1>{{ '全部记录（管理员）' if current_user and current_user.role == 'admin' else '我的发布' }}</h1>
+      <p class="muted">共 {{ total }} 条记录</p>
+    </div>
+    <div class="head-actions">
+      <a class="btn btn-primary" href="{{ url_for('publish_page') }}">＋ 发布信息</a>
+      {% if current_user and current_user.role == 'admin' %}
+        <button class="btn btn-outline" type="button" id="recompute-btn">重算全库匹配</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat"><small>失物</small><strong>{{ stats.lost_count }}</strong></div>
+    <div class="stat"><small>拾物</small><strong>{{ stats.found_count }}</strong></div>
+    <div class="stat"><small>已解决</small><strong>{{ stats.solved_count }}</strong></div>
+    <div class="stat"><small>高可信匹配</small><strong>{{ stats.strong_match_count }}</strong></div>
+    <div class="stat"><small>图片</small><strong>{{ stats.image_count }}</strong></div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th><th>类型</th><th>标题</th><th>分类</th><th>地点</th>
+          <th>标签</th><th>最佳匹配</th><th>发布时间</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+          <tr data-item-id="{{ item.id }}">
+            <td>{{ item.id }}</td>
+            <td><span class="badge badge-{{ item.type }}">{{ item.type_label }}</span></td>
+            <td>
+              <a href="{{ url_for('item_page', item_id=item.id) }}">{{ item.title }}</a>
+              {% if item.images %}<small class="muted">（{{ item.images | length }} 图）</small>{% else %}<small class="muted">（无图）</small>{% endif %}
+            </td>
+            <td>{{ item.category_name }}</td>
+            <td>{{ item.location or '—' }}</td>
+            <td>
+              {% for tag in item.tags[:3] %}<span class="tag tag-sm">{{ tag }}</span>{% endfor %}
+              {% if item.tags | length > 3 %}<span class="tag tag-sm">+{{ item.tags | length - 3 }}</span>{% endif %}
+            </td>
+            <td>
+              {% if item.match_top > 0 %}
+                <span class="score-chip small {{ item.match_top | score_class }}">{{ item.match_top | pct }}</span>
+              {% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td class="muted small">{{ item.created_at | dt('%m-%d %H:%M') }}</td>
+            <td>
+              <button class="btn btn-sm btn-ghost" type="button" data-action="delete-item" data-item-id="{{ item.id }}">删除</button>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="9" class="muted center">还没有发布任何记录</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

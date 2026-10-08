@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}登录{% endblock %}
+
+{% block content %}
+<section class="wrap section narrow">
+  <div class="auth-card">
+    <h1>登录</h1>
+    <p class="muted">浏览与匹配查询无需登录；发布信息需要登录，以避免虚假信息干扰匹配结果。</p>
+
+    <div class="tabs" role="tablist">
+      <button class="tab active" type="button" data-tab="login">登录</button>
+      <button class="tab" type="button" data-tab="register">注册</button>
+    </div>
+
+    <form id="auth-form" class="auth-form">
+      <input type="hidden" name="mode" value="login">
+      <div class="field">
+        <label class="field-label" for="a-username">用户名</label>
+        <input class="input" id="a-username" name="username" required minlength="3" maxlength="24"
+               placeholder="3-24 位字母、数字或下划线" autocomplete="username">
+      </div>
+      <div class="field">
+        <label class="field-label" for="a-password">密码</label>
+        <input class="input" id="a-password" name="password" type="password" required minlength="6"
+               placeholder="至少 6 位" autocomplete="current-password">
+      </div>
+      <div class="field" data-only="register" hidden>
+        <label class="field-label" for="a-display">昵称</label>
+        <input class="input" id="a-display" name="display_name" maxlength="40" placeholder="展示用的名字">
+      </div>
+      <div class="field" data-only="register" hidden>
+        <label class="field-label" for="a-contact">联系方式</label>
+        <input class="input" id="a-contact" name="contact" maxlength="80" placeholder="手机 / 邮箱（发布时自动填入）">
+      </div>
+      <button class="btn btn-primary btn-lg btn-block" type="submit" id="auth-submit">登录</button>
+      <p class="auth-msg" id="auth-msg"></p>
+    </form>
+
+    <div class="demo-account">
+      <strong>演示账号</strong>
+      <p>普通用户 <code>demo / demo1234</code> · 管理员 <code>admin / demo1234</code></p>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+{% endblock %}

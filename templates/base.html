@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}失物招领{% endblock %} · CQU-SRTP 失物招领系统</title>
+  <meta name="description" content="基于图像感知匹配与文本标签匹配的校园失物招领平台">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="{{ url_for('index') }}">
+      <span class="brand-mark">寻</span>
+      <span class="brand-text">
+        <strong>失物招领</strong>
+        <small>图像感知 · 标签匹配</small>
+      </span>
+    </a>
+
+    <nav class="nav">
+      <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' }}">首页</a>
+      <a href="{{ url_for('browse_page', type='lost') }}" class="{{ 'active' if request.endpoint == 'browse_page' and item_type == 'lost' }}">寻物启事</a>
+      <a href="{{ url_for('browse_page', type='found') }}" class="{{ 'active' if request.endpoint == 'browse_page' and item_type == 'found' }}">失物招领</a>
+      <a href="{{ url_for('algorithm_page') }}" class="{{ 'active' if request.endpoint == 'algorithm_page' }}">算法演示</a>
+      {% if current_user and current_user.role == 'admin' %}
+        <a href="{{ url_for('admin_page') }}" class="{{ 'active' if request.endpoint == 'admin_page' }}">管理</a>
+      {% endif %}
+    </nav>
+
+    <div class="header-actions">
+      <a class="btn btn-primary" href="{{ url_for('publish_page') }}">＋ 发布信息</a>
+      {% if current_user %}
+        <div class="user-chip" data-user-menu>
+          <button type="button" class="user-chip-btn" aria-haspopup="true" aria-expanded="false">
+            {{ (current_user.display_name or current_user.username)[:6] }}
+          </button>
+          <div class="user-menu" hidden>
+            <a href="{{ url_for('admin_page') }}">我的发布</a>
+            <button type="button" data-action="logout">退出登录</button>
+          </div>
+        </div>
+      {% else %}
+        <a class="btn btn-ghost" href="{{ url_for('login_page') }}">登录</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <strong>CQU-SRTP 失物招领系统</strong>
+      <p>图像感知匹配（pHash + 前景颜色直方图） × 文本标签匹配（TF-IDF + 标签重合 + 地点语义）</p>
+    </div>
+    <div class="footer-meta">
+      <span>Flask + SQLite</span>
+      <span>v{{ app_version }}</span>
+      <a href="{{ url_for('algorithm_page') }}">算法说明</a>
+      <a href="/api/stats">开放接口</a>
+    </div>
+  </div>
+</footer>
+
+<div class="toast-host" id="toast-host" aria-live="polite"></div>
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

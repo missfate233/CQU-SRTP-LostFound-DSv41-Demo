@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}算法演示{% endblock %}
+
+{% block content %}
+<section class="wrap section">
+  <div class="page-head">
+    <div>
+      <h1>算法演示台</h1>
+      <p class="muted">
+        直接输入两条记录，实时查看图像通道与文本通道各自的得分、融合权重与匹配理由。
+        不写入数据库，可放心反复试算。
+      </p>
+    </div>
+    <a class="btn btn-outline" href="/api/matches/top?limit=10" target="_blank" rel="noopener">查看库内 Top 匹配 (JSON)</a>
+  </div>
+
+  <div class="algo-grid">
+    <!-- 左：输入 -->
+    <div class="algo-input">
+      <div class="panel">
+        <h2>记录 A（例如：你的寻物启事）</h2>
+        <div class="field">
+          <label class="field-label" for="a-title">标题</label>
+          <input class="input" id="a-title" value="黑色双肩包（内装教材与充电器）">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="a-tags">标签（逗号分隔）</label>
+            <input class="input" id="a-tags" value="黑色, 双肩包, 书包, 图书馆, 教材, 充电器">
+          </div>
+          <div class="field">
+            <label class="field-label" for="a-color">颜色</label>
+            <input class="input" id="a-color" value="黑色">
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="a-location">地点</label>
+          <input class="input" id="a-location" value="虎溪校区图书馆 4 楼自习区">
+        </div>
+        <div class="field">
+          <label class="field-label" for="a-desc">描述</label>
+          <textarea class="input" id="a-desc" rows="3">昨天下午在图书馆四楼自习区落下的黑色双肩包，里面有《数据结构》教材和一个充电器。</textarea>
+        </div>
+        <div class="field">
+          <label class="field-label">照片（可选，最多 2 张）</label>
+          <input class="input" type="file" id="a-images" accept="image/*" multiple>
+          <div class="preview-grid small" id="a-preview"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>记录 B（例如：别人发布的失物招领）</h2>
+        <div class="field">
+          <label class="field-label" for="b-title">标题</label>
+          <input class="input" id="b-title" value="图书馆捡到黑色背包一个">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="b-tags">标签（逗号分隔）</label>
+            <input class="input" id="b-tags" value="黑色, 背包, 书包, 图书馆, 教材, 电源适配器">
+          </div>
+          <div class="field">
+            <label class="field-label" for="b-color">颜色</label>
+            <input class="input" id="b-color" value="黑色">
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="b-location">地点</label>
+          <input class="input" id="b-location" value="虎溪校区图书馆">
+        </div>
+        <div class="field">
+          <label class="field-label" for="b-desc">描述</label>
+          <textarea class="input" id="b-desc" rows="3">在四楼靠窗自习位发现一个黑色背包，包里有教材和电源适配器，已交到图书馆一楼总服务台。</textarea>
+        </div>
+        <div class="field">
+          <label class="field-label">照片（可选，最多 2 张）</label>
+          <input class="input" type="file" id="b-images" accept="image/*" multiple>
+          <div class="preview-grid small" id="b-preview"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>融合权重</h2>
+        <div class="slider-row">
+          <label for="w-image">图像感知 <b id="w-image-val">{{ (weights.image * 100) | round(0) | int }}%</b></label>
+          <input type="range" id="w-image" min="0" max="100" value="{{ (weights.image * 100) | round(0) | int }}">
+        </div>
+        <div class="slider-row">
+          <label for="w-text">文本标签 <b id="w-text-val">{{ (weights.text * 100) | round(0) | int }}%</b></label>
+          <input type="range" id="w-text" min="0" max="100" value="{{ (weights.text * 100) | round(0) | int }}">
+        </div>
+        <div class="slider-row">
+          <label for="w-location">地点语义 <b id="w-location-val">{{ (weights.location * 100) | round(0) | int }}%</b></label>
+          <input type="range" id="w-location" min="0" max="100" value="{{ (weights.location * 100) | round(0) | int }}">
+        </div>
+        <p class="hint">权重会自动归一化。任一侧没有照片时，图像权重会按比例让渡给文本与地点。</p>
+      </div>
+
+      <button class="btn btn-primary btn-lg btn-block" type="button" id="run-btn">开始比对</button>
+    </div>
+
+    <!-- 右：结果 -->
+    <div class="algo-result">
+      <div class="panel sticky">
+        <h2>比对结果</h2>
+        <div id="algo-result-body">
+          <p class="muted">点击「开始比对」查看结果。</p>
+        </div>
+
+        <details class="algo-notes" open>
+          <summary>算法说明</summary>
+          <h3>图像感知通道</h3>
+          <ol>
+            <li><strong>前景分割</strong>：以四角像素估计背景色，用中位数 + 3×1.4826×MAD 的鲁棒阈值分离主体，中值滤波去噪后保留最大连通域。</li>
+            <li><strong>轮廓指纹</strong>：把前景掩膜等比归一化到 16×16 网格（保持长宽比、居中放置），得到 256 位轮廓指纹，用 Dice 系数比对；再配合<strong>包围盒填充率</strong>（方块≈1.0、圆≈0.79、三角≈0.5）区分「轮廓相近但形状不同」的物品。</li>
+            <li><strong>颜色直方图</strong>：只取 HSV 的<strong>色相 H</strong>，做 16 维环形软分箱直方图，用直方图相交率衡量一致性。只取色相是实测结论：饱和度会被曝光直接带动（同一红色物体曝光 +12% 时前景饱和度均值从 174 掉到 162），导致明明同色的直方图相交率只剩 0.065；改用色相后回升到 0.92。</li>
+            <li><strong>主色一致性</strong>：用加权 H/S/V 距离补充「深红 vs 浅红」这类亮度差异。</li>
+            <li><strong>整图 pHash</strong>：DCT 低频 64 位指纹，仅作为「疑似同一张照片」的弱提示（权重 10%）。实测它对拍摄距离过于敏感：同一方块换尺度后汉明距离 24~32，而换成圆形也只有 21，几乎没有区分度，因此不作为主通道。</li>
+          </ol>
+          <h3>文本标签通道</h3>
+          <ol>
+            <li><strong>中文分词</strong>：单字 + 相邻双字同时入袋，并做同义词归一化（"蓝牙耳机"→"耳机"、"一卡通"→"校园卡"）。</li>
+            <li><strong>TF-IDF 余弦</strong>：在「目标 + 全部候选」语料上拟合 IDF，避免单词语料导致权重退化。</li>
+            <li><strong>标签重合度</strong>：Dice 系数 + 字符二元组模糊等价（"黑色耳机" ≈ "耳机"）。</li>
+            <li><strong>地点语义</strong>：字符串包含关系、地点提示词命中（教学楼/图书馆/食堂…）与 token 重合。</li>
+          </ol>
+          <h3>融合与判定</h3>
+          <p>
+            总分 = 图像 × w₁ + 文本 × w₂ + 地点 × w₃，权重默认
+            {{ (weights.image * 100) | round(0) | int }}% / {{ (weights.text * 100) | round(0) | int }}% /
+            {{ (weights.location * 100) | round(0) | int }}%。
+            当前阈值：高可信 ≥ {{ thresholds.strong }}，疑似 ≥ {{ thresholds.candidate }}，展示下限 {{ thresholds.weak }}。
+          </p>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/algorithm.js') }}"></script>
+{% endblock %}

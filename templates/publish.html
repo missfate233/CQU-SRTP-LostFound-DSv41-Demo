@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}发布信息{% endblock %}
+
+{% block content %}
+<section class="wrap section narrow">
+  <div class="page-head">
+    <div>
+      <h1>发布信息</h1>
+      <p class="muted">填写得越具体（尤其是照片、颜色、标签、地点），自动匹配越准。</p>
+    </div>
+  </div>
+
+  <form id="publish-form" class="publish-form" autocomplete="off">
+    <!-- 类型 -->
+    <div class="field">
+      <label class="field-label">信息类型 <span class="req">*</span></label>
+      <div class="segmented" role="radiogroup">
+        <label class="seg">
+          <input type="radio" name="type" value="lost" {{ 'checked' if preset_type != 'found' }}>
+          <span><strong>我丢了东西</strong><small>发布寻物启事</small></span>
+        </label>
+        <label class="seg">
+          <input type="radio" name="type" value="found" {{ 'checked' if preset_type == 'found' }}>
+          <span><strong>我捡到东西</strong><small>发布失物招领</small></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 图片 -->
+    <div class="field">
+      <label class="field-label">照片（最多 4 张，支持拖拽 / 粘贴）</label>
+      <div class="dropzone" id="dropzone" tabindex="0">
+        <input type="file" id="file-input" accept="image/*" multiple hidden>
+        <div class="dropzone-hint">
+          <strong>点击选择照片</strong>
+          <small>或把图片拖到这里 / 直接 Ctrl+V 粘贴。系统会自动校正方向并提取感知特征。</small>
+        </div>
+      </div>
+      <div class="preview-grid" id="preview-grid"></div>
+      <p class="hint">
+        图像通道会先做前景分割再算 pHash 与颜色直方图，因此即使背景不同、拍摄角度不同也能匹配。
+      </p>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label" for="f-title">标题 <span class="req">*</span></label>
+        <input class="input" id="f-title" name="title" maxlength="80" required
+               placeholder="例如：黑色双肩包（内装教材与充电器）">
+      </div>
+      <div class="field">
+        <label class="field-label" for="f-category">分类</label>
+        <select class="input" id="f-category" name="category">
+          {% for cat in categories %}
+            <option value="{{ cat.code }}" {{ 'selected' if cat.code == 'other' }}>{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label" for="f-color">颜色</label>
+        <input class="input" id="f-color" name="color_name" list="color-options" placeholder="例如：黑色">
+        <datalist id="color-options">
+          <option value="黑色"></option><option value="白色"></option><option value="灰色"></option>
+          <option value="红色"></option><option value="橙色"></option><option value="黄色"></option>
+          <option value="绿色"></option><option value="蓝色"></option><option value="紫色"></option>
+          <option value="粉色"></option><option value="棕色"></option><option value="米色"></option>
+        </datalist>
+        <p class="hint">留空则自动从照片中提取主色。</p>
+      </div>
+      <div class="field">
+        <label class="field-label" for="f-location">地点</label>
+        <input class="input" id="f-location" name="location" maxlength="120"
+               placeholder="例如：虎溪校区图书馆 4 楼自习区">
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="f-tags">文本标签</label>
+      <div class="tag-input" id="tag-input">
+        <div class="tag-chips" id="tag-chips"></div>
+        <input class="tag-field" id="f-tags" type="text" placeholder="输入标签后按回车，例如：黑色、双肩包、图书馆">
+      </div>
+      <div class="tag-suggest" id="tag-suggest"></div>
+      <p class="hint">
+        标签是文本匹配的核心。建议包含：颜色 + 物品名 + 品牌/型号 + 地点 + 特征（挂件、贴纸、划痕）。
+      </p>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="f-desc">详细描述</label>
+      <textarea class="input" id="f-desc" name="description" rows="4" maxlength="2000"
+                placeholder="补充物品的独有特征、丢失/拾取的时间与经过，便于双方核对。"></textarea>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label" for="f-name">联系人</label>
+        <input class="input" id="f-name" name="contact_name" maxlength="40"
+               value="{{ (current_user.display_name if current_user else '') or '' }}" placeholder="姓名 / 称呼">
+      </div>
+      <div class="field">
+        <label class="field-label" for="f-contact">联系方式</label>
+        <input class="input" id="f-contact" name="contact" maxlength="80"
+               value="{{ (current_user.contact if current_user else '') or '' }}" placeholder="手机 / 邮箱 / 微信号">
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary btn-lg" type="submit" id="submit-btn">发布并立即匹配</button>
+      <span class="muted small" id="form-status"></span>
+    </div>
+  </form>
+
+  <!-- 发布结果 -->
+  <div id="result-panel" class="result-panel" hidden>
+    <div class="result-head">
+      <h2 id="result-title">发布成功</h2>
+      <a class="btn btn-ghost btn-sm" id="result-link" href="#">查看详情 →</a>
+    </div>
+    <div id="result-matches"></div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/publish.js') }}"></script>
+{% endblock %}

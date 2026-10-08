@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}首页{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="wrap hero-inner">
+    <div class="hero-copy">
+      <span class="pill">图像感知匹配 · 文本标签匹配</span>
+      <h1>丢了东西？<br>让算法帮你把它找回来</h1>
+      <p class="lead">
+        上传一张照片、写下几个标签，系统会在 <strong>感知哈希 + 前景颜色直方图</strong> 与
+        <strong>TF-IDF 标签语义</strong> 两条通道上同时比对，把最可能属于你的那条「失物招领」记录
+        排在第一位，并给出可核对的匹配证据。
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary btn-lg" href="{{ url_for('publish_page', type='lost') }}">我丢了东西</a>
+        <a class="btn btn-outline btn-lg" href="{{ url_for('publish_page', type='found') }}">我捡到东西</a>
+        <a class="btn btn-ghost btn-lg" href="{{ url_for('algorithm_page') }}">先看算法效果</a>
+      </div>
+      <ul class="hero-facts">
+        <li><strong>{{ stats.total_count }}</strong> 条在库记录</li>
+        <li><strong>{{ stats.image_count }}</strong> 张感知特征图片</li>
+        <li><strong>{{ stats.strong_match_count }}</strong> 组高可信匹配</li>
+        <li>撮合耗时 <strong>&lt; 1s</strong></li>
+      </ul>
+    </div>
+
+    <div class="hero-panel">
+      <div class="hero-panel-head">
+        <span class="dot dot-red"></span><span class="dot dot-amber"></span><span class="dot dot-green"></span>
+        <span class="hero-panel-title">匹配证据示例</span>
+      </div>
+      {% if showcases %}
+        {% set top = showcases[0] %}
+        <div class="evidence">
+          <div class="evidence-pair">
+            <div class="evidence-side">
+              {% if top.lost_thumb %}
+                <img src="{{ url_for('static', filename='uploads/' ~ top.lost_thumb) }}" alt="寻物启事图片">
+              {% else %}<div class="thumb-placeholder small"><span>无图</span></div>{% endif %}
+              <span class="badge badge-lost">寻物启事</span>
+              <p>{{ top.lost_title }}</p>
+            </div>
+            <div class="evidence-score">
+              <strong>{{ top.score | pct }}</strong>
+              <small>综合得分</small>
+            </div>
+            <div class="evidence-side">
+              {% if top.found_thumb %}
+                <img src="{{ url_for('static', filename='uploads/' ~ top.found_thumb) }}" alt="失物招领图片">
+              {% else %}<div class="thumb-placeholder small"><span>无图</span></div>{% endif %}
+              <span class="badge badge-found">失物招领</span>
+              <p>{{ top.found_title }}</p>
+            </div>
+          </div>
+          <ul class="evidence-reasons">
+            {% for reason in top.reasons[:4] %}<li>{{ reason }}</li>{% endfor %}
+          </ul>
+          <div class="evidence-bars">
+            <div class="bar-row"><span>图像感知</span><div class="bar"><i style="width: {{ (top.image_score * 100) | round(1) }}%"></i></div><b>{{ top.image_score | pct }}</b></div>
+            <div class="bar-row"><span>文本标签</span><div class="bar bar-2"><i style="width: {{ (top.text_score * 100) | round(1) }}%"></i></div><b>{{ top.text_score | pct }}</b></div>
+          </div>
+        </div>
+      {% else %}
+        <div class="evidence empty">
+          <p>还没有数据。运行 <code>python seed.py --reset</code> 生成演示数据，
+             或直接发布一条记录体验匹配流程。</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="wrap section">
+  <div class="section-head">
+    <h2>三步完成匹配</h2>
+    <p>发布即触发全库比对，无需等待人工翻找</p>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <span class="step-num">1</span>
+      <h3>拍照 + 打标签</h3>
+      <p>上传最多 4 张照片，填写分类、颜色、地点与自定义标签。照片会自动做 EXIF 校正、压缩与特征提取。</p>
+    </div>
+    <div class="step">
+      <span class="step-num">2</span>
+      <h3>双通道感知比对</h3>
+      <p>图像侧提取前景主体后计算 64 位 pHash 与 HSV 颜色直方图；文本侧做中文单字/双字分词与 TF-IDF 余弦。</p>
+    </div>
+    <div class="step">
+      <span class="step-num">3</span>
+      <h3>查看证据并联系</h3>
+      <p>每条匹配都给出人类可读的依据（哈希距离、颜色相交率、命中标签、地点吻合），确认后即可联系对方。</p>
+    </div>
+  </div>
+</section>
+
+{% if showcases %}
+<section class="wrap section">
+  <div class="section-head">
+    <h2>最近的高可信匹配</h2>
+    <p>系统自动撮合出的候选对，供双方互相确认</p>
+  </div>
+  <div class="match-strip">
+    {% for row in showcases %}
+      <a class="match-card" href="{{ url_for('item_page', item_id=row.lost_id) }}">
+        <div class="match-thumbs">
+          {% if row.lost_thumb %}<img src="{{ url_for('static', filename='uploads/' ~ row.lost_thumb) }}" alt="">{% else %}<div class="thumb-placeholder small"><span>无图</span></div>{% endif %}
+          {% if row.found_thumb %}<img src="{{ url_for('static', filename='uploads/' ~ row.found_thumb) }}" alt="">{% else %}<div class="thumb-placeholder small"><span>无图</span></div>{% endif %}
+        </div>
+        <div class="match-info">
+          <span class="score-chip {{ row.score | score_class }}">{{ row.score | pct }}</span>
+          <p class="match-title">{{ row.lost_title }}</p>
+          <p class="match-title muted">↔ {{ row.found_title }}</p>
+          {% if row.reasons %}<p class="match-reason">{{ row.reasons[0] }}</p>{% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="wrap section">
+  <div class="two-col">
+    <div>
+      <div class="section-head compact">
+        <h2>最新寻物启事</h2>
+        <a class="link-arrow" href="{{ url_for('browse_page', type='lost') }}">全部 →</a>
+      </div>
+      {% if recent_lost %}
+        <div class="mini-list">
+          {% for item in recent_lost %}
+            <a class="mini-item" href="{{ url_for('item_page', item_id=item.id) }}">
+              {% if item.images %}
+                <img src="{{ url_for('static', filename='uploads/' ~ item.images[0].thumb) }}" alt="">
+              {% else %}<span class="mini-noimg">无图</span>{% endif %}
+              <span class="mini-main">
+                <strong>{{ item.title }}</strong>
+                <small>{{ item.category_name }} · {{ item.location or '地点未填写' }} · {{ item.created_at | ago }}</small>
+              </span>
+              {% if item.match_top > 0.3 %}<span class="score-chip small {{ item.match_top | score_class }}">{{ item.match_top | pct }}</span>{% endif %}
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}<p class="muted">暂无记录</p>{% endif %}
+    </div>
+
+    <div>
+      <div class="section-head compact">
+        <h2>最新失物招领</h2>
+        <a class="link-arrow" href="{{ url_for('browse_page', type='found') }}">全部 →</a>
+      </div>
+      {% if recent_found %}
+        <div class="mini-list">
+          {% for item in recent_found %}
+            <a class="mini-item" href="{{ url_for('item_page', item_id=item.id) }}">
+              {% if item.images %}
+                <img src="{{ url_for('static', filename='uploads/' ~ item.images[0].thumb) }}" alt="">
+              {% else %}<span class="mini-noimg">无图</span>{% endif %}
+              <span class="mini-main">
+                <strong>{{ item.title }}</strong>
+                <small>{{ item.category_name }} · {{ item.location or '地点未填写' }} · {{ item.created_at | ago }}</small>
+              </span>
+              {% if item.match_top > 0.3 %}<span class="score-chip small {{ item.match_top | score_class }}">{{ item.match_top | pct }}</span>{% endif %}
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}<p class="muted">暂无记录</p>{% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="wrap section">
+  <div class="section-head">
+    <h2>按分类浏览</h2>
+  </div>
+  <div class="cat-grid">
+    {% for cat in categories %}
+      <a class="cat-item" href="{{ url_for('browse_page') }}?category={{ cat.code }}">
+        <strong>{{ cat.name }}</strong>
+        <small>{{ cat.item_count }} 条</small>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

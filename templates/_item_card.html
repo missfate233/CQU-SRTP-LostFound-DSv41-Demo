@@ -1,0 +1,48 @@
+<!-- 物品卡片：列表页 / 首页复用 -->
+<article class="card item-card" data-item-id="{{ item.id }}">
+  <a class="item-thumb" href="{{ url_for('item_page', item_id=item.id) }}">
+    {% set cover = item.images[0] if item.images else None %}
+    {% if cover %}
+      <img src="{{ url_for('static', filename='uploads/' ~ cover.thumb) }}" alt="{{ item.title }}" loading="lazy">
+    {% else %}
+      <div class="thumb-placeholder">
+        <span>{{ item.category_name[:2] }}</span>
+        <small>暂无图片</small>
+      </div>
+    {% endif %}
+    <span class="badge badge-{{ item.type }}">{{ item.type_label }}</span>
+    {% if item.match_top >= 0.55 %}
+      <span class="badge badge-match" title="系统找到高可信匹配">匹配 {{ item.match_top | pct }}</span>
+    {% endif %}
+  </a>
+
+  <div class="item-body">
+    <h3 class="item-title">
+      <a href="{{ url_for('item_page', item_id=item.id) }}">{{ item.title }}</a>
+    </h3>
+
+    <div class="item-meta">
+      <span class="meta-item" title="分类">🏷 {{ item.category_name }}</span>
+      {% if item.location %}<span class="meta-item" title="地点">📍 {{ item.location }}</span>{% endif %}
+      {% if item.color_name %}<span class="meta-item" title="颜色">🎨 {{ item.color_name }}</span>{% endif %}
+    </div>
+
+    {% if item.description %}
+      <p class="item-desc">{{ item.description }}</p>
+    {% endif %}
+
+    {% if item.tags %}
+      <div class="tag-row">
+        {% for tag in item.tags[:6] %}
+          <span class="tag">{{ tag }}</span>
+        {% endfor %}
+        {% if item.tags | length > 6 %}<span class="tag tag-more">+{{ item.tags | length - 6 }}</span>{% endif %}
+      </div>
+    {% endif %}
+
+    <div class="item-foot">
+      <span class="muted">{{ item.created_at | ago }}</span>
+      <a class="link-arrow" href="{{ url_for('item_page', item_id=item.id) }}">查看匹配 →</a>
+    </div>
+  </div>
+</article>
